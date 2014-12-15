@@ -1,10 +1,10 @@
+#!/usr/bin/ruby
+#coding:utf-8
+Encoding.default_external='UTF-8'
+
 # 英辞郎の英和辞書をMac OS X v10.5 "Leopard"の辞書アプリケーション（Dictionary.app）用に変換
 # v0.09 by Tats_y (http://www.binword.com/blog/)
 # 2011/04/10
-
-$KCODE = "UTF-8"
-require 'iconv'
-require 'jcode'
 require 'cgi'
 
 word_index = Hash.new
@@ -43,11 +43,10 @@ temp_array = Array.new
   http    = "【URL】(#{http_URL})"
   $re_http = Regexp.new(http)	# URLチェック用の正規表現はグローバル変数
 
-
-iconv = Iconv.new('UTF-8', 'CP932')  #Windowsエンコードを変換するためCP932を指定
+STDIN.set_encoding("Windows-31J", "UTF-8")
 while line = gets
   next if line.strip.empty?
-  line1 = iconv.iconv(line)  #Shift_JISからUTF-8へ変換
+  line1 = line
   temp_word = /^■/.match(/\s:\s/.match(line1).pre_match).post_match  #見出しと定義に分割
   if /\{.*\}/.match(temp_word).nil? then  #品詞が含まれているものはさらに分割
     temp_index = temp_word.strip
@@ -58,7 +57,7 @@ while line = gets
   next if temp_index.length > 512 #見出し語が長すぎる項目はスキップ
   definition =  /\s:\s/.match(line1).post_match.chomp
   id = temp_index.unpack("C*").map!{|i| i.to_s(16)}.join("")  #一意のIDを付与（文字コードで表現）
-  word_index[id] = CGI::escapeHTML(temp_index)
+  word_index[id] = CGI.escapeHTML(temp_index)
   temp1_conj = definition.scan(/【変化】([^【■]+)/)  # 【変化】が2つ以上ある場合、配列に分解
   temp1_conj.each{|elem|
     temp2_conj.concat(elem.to_s.gsub(/《.+?》/,"").split(/[^a-zA-Z\(\)]+/))  # 「;-、空白」などで区切られた要素を分解
@@ -99,7 +98,7 @@ word_index.each{|x, value|
   }
   print "\t<h1>" + value + "</h1>\n"
 
-word_definition[x] = CGI::escapeHTML(word_definition[x])  # HTMLのタグをエスケープ
+word_definition[x] = CGI.escapeHTML(word_definition[x])  # HTMLのタグをエスケープ
 word_definition[x] = word_definition[x].gsub(/&lt;→(.+?)&gt;/){  # リンク先が複数ある場合（「;」で区切られている）、各要素を展開
   temp_array = $1.split(/\s;\s/)
   temp_array.map!{|elem|  # ()や[]などを含むリンクについては、表記はそのまま、実際のリンクは()や[]を除いた項目へ

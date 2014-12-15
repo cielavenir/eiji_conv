@@ -1,6 +1,7 @@
-$KCODE = "Shift_JIS"
-require 'jcode'
+#!/usr/bin/ruby
+#coding:Windows-31J
+Encoding.default_external='Windows-31J'
 
 while line = gets
-  print line.gsub(/\s:\s(.+?)([œŸ])/){%Q[\s:\s<¨#$1>#$2]}
+	print line.gsub(/\s:\s(.+?)([œŸ])/){%Q[\s:\s<¨#$1>#$2]}
 end

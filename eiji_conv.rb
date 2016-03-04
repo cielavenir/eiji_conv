@@ -6,6 +6,10 @@ Encoding.default_external='UTF-8'
 # v0.09 by Tats_y (http://www.binword.com/blog/)
 # 2011/04/10
 require 'cgi'
+require 'digest/md5'
+
+# スキップ行の格納ファイル(調査用)
+reject_file = File.open("_reject.txt", "w")
 
 word_index = Hash.new
 word_id = Hash.new
@@ -44,7 +48,9 @@ temp_array = Array.new
   $re_http = Regexp.new(http)	# URLチェック用の正規表現はグローバル変数
 
 STDIN.set_encoding("Windows-31J", "UTF-8")
+lineno = 0
 while line = gets
+  lineno += 1
   next if line.strip.empty?
   line1 = line
   temp_word = /^■/.match(/\s:\s/.match(line1).pre_match).post_match  #見出しと定義に分割
@@ -54,9 +60,21 @@ while line = gets
     temp_index = /\{.*\}/.match(temp_word).pre_match.to_s.strip
     wordclass = /\{.*\}/.match(temp_word).to_s
   end
-  next if temp_index.length > 512 #見出し語が長すぎる項目はスキップ
+
+  # 継続調査要
+  #  - 512超 or 960バイト超 をスキップ. EIJI-1441.TXT,REIJI1441.TXT はこれでok
+  #  - WAEI-1441 は temp_index.length > 278 || temp_index.bytesize > 960
+  if temp_index.length > 512 || temp_index.bytesize > 960 then
+    # スキップする行をファイルに出力
+    reject_file.print lineno, ": length=", temp_index.length ," bytesize=", temp_index.bytesize, " line:", line
+    next
+  end
+
   definition =  /\s:\s/.match(line1).post_match.chomp
-  id = temp_index.unpack("C*").map!{|i| i.to_s(16)}.join("")  #一意のIDを付与（文字コードで表現）
+
+  # 一意のIDを128バイトで付与 (IDが129バイト以上だとIDXBuildIndexWithRecords failed)
+  id = Digest::SHA512.hexdigest(temp_index)
+
   word_index[id] = CGI.escapeHTML(temp_index)
   temp1_conj = definition.scan(/【変化】([^【■]+)/)  # 【変化】が2つ以上ある場合、配列に分解
   temp1_conj.each{|elem|
@@ -90,8 +108,13 @@ print '<?xml version="1.0" encoding="UTF-8"?>' + "\n"
 print '<d:dictionary xmlns="http://www.w3.org/1999/xhtml" xmlns:d="http://www.apple.com/DTDs/DictionaryService-1.0.rng">' + "\n"
 
 word_index.each{|x, value|
-  print "<d:entry id=\"" + x + "\" d:title=\"" + value +"\">\n"
-  print "\t<d:index d:value=\"" + value + "\" />\n"
+
+  # 辞書.appのリストに実体参照がそのまま表示されるので " と ' を削除
+  print "<d:entry id=\"" + x + "\" d:title=\"" + value.gsub(/&quot;/,"").gsub(/&#39;/,"") +"\">\n"
+
+  # 辞書.appのリストに実体参照がそのまま表示されるので ' を削除
+  print "\t<d:index d:value=\"" + value.gsub(/&#39;/,"") + "\" />\n"
+
   word_conj[x].delete(value)
   word_conj[x].each{|elem|
     print "\t<d:index d:value=\"" + elem + "\" " "d:title=\"" + elem +" (" +value + ")\" />\n"  # ハッシュに格納してある変化形でも引けるようにする
@@ -102,7 +125,8 @@ word_definition[x] = CGI.escapeHTML(word_definition[x])  # HTMLのタグをエ�
 word_definition[x] = word_definition[x].gsub(/&lt;→(.+?)&gt;/){  # リンク先が複数ある場合（「;」で区切られている）、各要素を展開
   temp_array = $1.split(/\s;\s/)
   temp_array.map!{|elem|  # ()や[]などを含むリンクについては、表記はそのまま、実際のリンクは()や[]を除いた項目へ
-    elem = %Q[<a href="x-dictionary:r:#{elem.gsub(/\[.+?\]|\(.+?\)|\{.+?\}/,"").strip.gsub(/\s+/, " ").unpack("C*").map!{|i| i.to_s(16)}.join("")}">#{elem.strip}</a>]
+    # 実体参照変換前に戻して参照先のIDを生成
+    elem = %Q[<a href="x-dictionary:r:#{ Digest::SHA512.hexdigest(CGI.unescapeHTML( elem.gsub(/\[.+?\]|\(.+?\)|\{.+?\}/,"").strip.gsub(/\s+/, " ") )) }">#{elem.strip}</a>]
   }
   "&lt;→" + temp_array.join(" ; ") + "&gt;"
 }

@@ -6,7 +6,7 @@ Encoding.default_external='UTF-8'
 # v0.09 by Tats_y (http://www.binword.com/blog/)
 # 2011/04/10
 require 'cgi'
-require 'digest/md5'
+require 'digest/sha2'
 
 # スキップ行の格納ファイル(調査用)
 reject_file = File.open("_reject.txt", "w")
@@ -47,7 +47,7 @@ temp_array = Array.new
   http    = "【URL】(#{http_URL})"
   $re_http = Regexp.new(http)	# URLチェック用の正規表現はグローバル変数
 
-STDIN.set_encoding("Windows-31J", "UTF-8")
+STDIN.set_encoding("Windows-31J", "UTF-8", :invalid => :replace, :undef => :replace)
 lineno = 0
 while line = gets
   lineno += 1

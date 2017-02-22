@@ -47,7 +47,7 @@ temp_array = Array.new
   http    = "【URL】(#{http_URL})"
   $re_http = Regexp.new(http)	# URLチェック用の正規表現はグローバル変数
 
-STDIN.set_encoding("Windows-31J", "UTF-8", :invalid => :replace, :undef => :replace)
+ARGF.set_encoding("Windows-31J", "UTF-8", :invalid => :replace, :undef => :replace)
 lineno = 0
 while line = gets
   lineno += 1
